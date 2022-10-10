@@ -1,0 +1,6 @@
+.pio
+.vscode
+configs/
+*.code-workspace
+*.log
+
