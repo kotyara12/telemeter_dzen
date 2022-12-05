@@ -541,29 +541,25 @@ void sensorsTaskExec(void *pvParameters)
       if (statesInetIsAvailabled() && timerTimeout(&omSendTimer)) {
         timerSet(&omSendTimer, iOpenMonInterval*1000);
         char * omValues = nullptr;
-        // 01,02: Улица температура (RAW+FLT): FLOAT
-        // 03,04: Улица влажность (RAW+FLT): FLOAT
+        // Улица
         if (sensorOutdoor.getStatus() == SENSOR_STATUS_OK) {
           omValues = concat_strings_div(omValues, 
-            malloc_stringf("p1=%.3f&p2=%.2f&p3=%.3f&p4=%.2f", 
-              sensorOutdoor.getValue2(false).rawValue, sensorOutdoor.getValue2(false).filteredValue,
-              sensorOutdoor.getValue1(false).rawValue, sensorOutdoor.getValue1(false).filteredValue),
+            malloc_stringf("p1=%.3f&p2=%.2f", 
+              sensorOutdoor.getValue2(false).filteredValue, sensorOutdoor.getValue1(false).filteredValue),
             "&");
         };
-        // 05,06: Комната температура (RAW+FLT): FLOAT
-        // 07,08: Комната влажность (RAW+FLT): FLOAT
+        // Комната
         if (sensorIndoor.getStatus() == SENSOR_STATUS_OK) {
           omValues = concat_strings_div(omValues, 
-            malloc_stringf("p5=%.3f&p6=%.2f&p7=%.3f&p8=%.2f", 
-              sensorIndoor.getValue2(false).rawValue, sensorIndoor.getValue2(false).filteredValue,
-              sensorIndoor.getValue1(false).rawValue, sensorIndoor.getValue1(false).filteredValue),
+            malloc_stringf("p3=%.3f&p4=%.2f", 
+              sensorIndoor.getValue2(false).filteredValue, sensorIndoor.getValue1(false).filteredValue),
             "&");
         };
-        // 09,10: Теплоноситель (RAW+FLT): FLOAT
+        // Котёл
         if (sensorBoiler.getStatus() == SENSOR_STATUS_OK) {
           omValues = concat_strings_div(omValues, 
-            malloc_stringf("p9=%.3f&p10=%.2f", 
-              sensorBoiler.getValue(false).rawValue, sensorBoiler.getValue(false).filteredValue),
+            malloc_stringf("p5=%.3f", 
+              sensorBoiler.getValue(false).filteredValue),
             "&");
         };
         // Отправляем данные
@@ -576,10 +572,35 @@ void sensorsTaskExec(void *pvParameters)
 
     // narodmon.ru
     #if CONFIG_NARODMON_ENABLE
-      if (statesInetIsAvailabled() && timerTimeout(&nmSendTimer) && (sensorOutdoor.getStatus() == SENSOR_STATUS_OK)) {
+      if (statesInetIsAvailabled() && timerTimeout(&nmSendTimer)) {
         timerSet(&nmSendTimer, iNarodMonInterval*1000);
-        dsSend(EDS_NARODMON, CONFIG_NARODMON_DEVICE01_ID, malloc_stringf("T1=%.2f&H1=%.2f",
-          sensorOutdoor.getValue2(false).filteredValue, sensorOutdoor.getValue1(false).filteredValue));
+        char * nmValues = nullptr;
+        // Улица
+        if (sensorOutdoor.getStatus() == SENSOR_STATUS_OK) {
+          nmValues = concat_strings_div(nmValues, 
+            malloc_stringf("Tout=%.2f&Hout=%.2f", 
+              sensorOutdoor.getValue2(false).filteredValue, sensorOutdoor.getValue1(false).filteredValue),
+            "&");
+        };
+        // Комната
+        if (sensorIndoor.getStatus() == SENSOR_STATUS_OK) {
+          nmValues = concat_strings_div(nmValues, 
+            malloc_stringf("Tin=%.2f&Hin=%.2f", 
+              sensorIndoor.getValue2(false).filteredValue, sensorIndoor.getValue1(false).filteredValue),
+            "&");
+        };
+        // Котёл
+        if (sensorBoiler.getStatus() == SENSOR_STATUS_OK) {
+          nmValues = concat_strings_div(nmValues, 
+            malloc_stringf("Tboiler=%.2f", 
+              sensorBoiler.getValue(false).filteredValue),
+            "&");
+        };
+        // Отправляем данные
+        if (nmValues) {
+          dsSend(EDS_NARODMON, CONFIG_NARODMON_DEVICE01_ID, nmValues, false); 
+          free(nmValues);
+        };
       };
     #endif // CONFIG_NARODMON_ENABLE
 
@@ -587,8 +608,37 @@ void sensorsTaskExec(void *pvParameters)
     #if CONFIG_THINGSPEAK_ENABLE
       if (statesInetIsAvailabled() && timerTimeout(&tsSendTimer)) {
         timerSet(&tsSendTimer, iThingSpeakInterval*1000);
+
+        char * tsValues = nullptr;
+        // Улица
+        if (sensorOutdoor.getStatus() == SENSOR_STATUS_OK) {
+          tsValues = concat_strings_div(tsValues, 
+            malloc_stringf("field1=%.3f&field2=%.2f", 
+              sensorOutdoor.getValue2(false).filteredValue, sensorOutdoor.getValue1(false).filteredValue),
+            "&");
+        };
+        // Комната
+        if (sensorIndoor.getStatus() == SENSOR_STATUS_OK) {
+          tsValues = concat_strings_div(tsValues, 
+            malloc_stringf("field3=%.3f&field4=%.2f", 
+              sensorIndoor.getValue2(false).filteredValue, sensorIndoor.getValue1(false).filteredValue),
+            "&");
+        };
+        // Котёл
+        if (sensorBoiler.getStatus() == SENSOR_STATUS_OK) {
+          tsValues = concat_strings_div(tsValues, 
+            malloc_stringf("field5=%.3f", 
+              sensorBoiler.getValue(false).filteredValue),
+            "&");
+        };
+        // Отправляем данные
+        if (tsValues) {
+          dsSend(EDS_THINGSPEAK, CONFIG_THINGSPEAK_CHANNEL01_ID, tsValues, false); 
+          free(tsValues);
+        };
       };
     #endif // CONFIG_THINGSPEAK_ENABLE
+    
     // -----------------------------------------------------------------------------------------------------
     // Ожидание
     // -----------------------------------------------------------------------------------------------------
