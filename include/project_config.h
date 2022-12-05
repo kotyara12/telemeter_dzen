@@ -268,21 +268,21 @@
 // -----------------------------------------------------------------------------------------------------------------------
 // EN: Enable sending data to open-monitoring.online
 // RU: Включить отправку данных на open-monitoring.online
-#define CONFIG_OPENMON_ENABLE 0
+#define CONFIG_OPENMON_ENABLE 1
 #if CONFIG_OPENMON_ENABLE
 // EN: Frequency of sending data in seconds
 // RU: Периодичность отправки данных в секундах
-#define CONFIG_OPENMON_SEND_INTERVAL 600
+#define CONFIG_OPENMON_SEND_INTERVAL 300
 // EN: Controller ids and tokens for open-monitoring.online
 // RU: Идентификаторы контроллеров и токены для open-monitoring.online
-#define CONFIG_OPENMON_CTR01_ID 9901
-#define CONFIG_OPENMON_CTR01_TOKEN "vgBMRn"
+#define CONFIG_OPENMON_CTR01_ID 2198
+#define CONFIG_OPENMON_CTR01_TOKEN "3W3aYt"
 // EN: Allow publication of ping results и системной информации on open-monitoring.online
 // RU: Разрешить публикацию результатов пинга и системной информации на open-monitoring.online
 #define CONFIG_OPENMON_PINGER_ENABLE 1
 #if CONFIG_OPENMON_PINGER_ENABLE
-#define CONFIG_OPENMON_PINGER_ID 9902
-#define CONFIG_OPENMON_PINGER_TOKEN "v539mn"
+#define CONFIG_OPENMON_PINGER_ID 2199
+#define CONFIG_OPENMON_PINGER_TOKEN "LUs2hg"
 #define CONFIG_OPENMON_PINGER_INTERVAL 300000
 #define CONFIG_OPENMON_PINGER_RSSI 1
 #define CONFIG_OPENMON_PINGER_HEAP_FREE 1
@@ -297,13 +297,13 @@
 
 // EN: Enable sending data to narodmon.ru
 // RU: Включить отправку данных на narodmon.ru
-#define CONFIG_NARODMON_ENABLE 0
+#define CONFIG_NARODMON_ENABLE 1
 #if CONFIG_NARODMON_ENABLE
 // EN: Frequency of sending data in seconds
 // RU: Периодичность отправки данных в секундах
 #define CONFIG_NARODMON_SEND_INTERVAL 300
 #define CONFIG_NARODMON_DEVICE01_ID 81693
-#define CONFIG_NARODMON_DEVICE01_KEY "bf:3e:9f:59:32:77"
+#define CONFIG_NARODMON_DEVICE01_KEY "9c:9e:9f:77:18:f7"
 #endif // CONFIG_NARODMON_ENABLE
 
 // -----------------------------------------------------------------------------------------------------------------------
@@ -312,7 +312,7 @@
 // -----------------------------------------------------------------------------------------------------------------------
 // EN: Enable sending data to thingspeak.com
 // RU: Включить отправку данных на thingspeak.com
-#define CONFIG_THINGSPEAK_ENABLE 0
+#define CONFIG_THINGSPEAK_ENABLE 1
 #if CONFIG_THINGSPEAK_ENABLE
 // EN: Frequency of sending data in seconds
 // RU: Периодичность отправки данных в секундах
