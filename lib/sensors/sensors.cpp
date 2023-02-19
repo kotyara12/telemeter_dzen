@@ -182,6 +182,17 @@ static void sensorsInitSensors()
   sensorOutdoor.nvsRestoreExtremums(SENSOR_OUTDOOR_KEY);
 
   // Комната
+  static rPressureItem siIndoorPress(nullptr, CONFIG_SENSOR_PRESSURE_NAME, CONFIG_FORMAT_PRESSURE_UNIT,
+    SENSOR_INDOOR_FILTER_MODE, SENSOR_INDOOR_FILTER_SIZE, 
+    CONFIG_FORMAT_PRESSURE_VALUE, CONFIG_FORMAT_PRESSURE_STRING,
+    #if CONFIG_SENSOR_TIMESTAMP_ENABLE
+      CONFIG_FORMAT_TIMESTAMP_L, 
+    #endif // CONFIG_SENSOR_TIMESTAMP_ENABLE
+    #if CONFIG_SENSOR_TIMESTRING_ENABLE  
+      CONFIG_FORMAT_TIMESTAMP_S, CONFIG_FORMAT_TSVALUE
+    #endif // CONFIG_SENSOR_TIMESTRING_ENABLE
+  );
+
   static rTemperatureItem siIndoorTemp(nullptr, CONFIG_SENSOR_TEMP_NAME, CONFIG_FORMAT_TEMP_UNIT,
     SENSOR_INDOOR_FILTER_MODE, SENSOR_INDOOR_FILTER_SIZE, 
     CONFIG_FORMAT_TEMP_VALUE, CONFIG_FORMAT_TEMP_STRING,
@@ -203,8 +214,9 @@ static void sensorsInitSensors()
     #endif // CONFIG_SENSOR_TIMESTRING_ENABLE
   );
   sensorIndoor.initExtItems(SENSOR_INDOOR_NAME, SENSOR_INDOOR_TOPIC, false,
-    SENSOR_INDOOR_BUS, HTU2X_RES_RH12_TEMP14, false,
-    &siIndoorHum, &siIndoorTemp,
+    SENSOR_INDOOR_BUS, SENSOR_INDOOR_ADDRESS, 
+    BME280_MODE_FORCED, BME280_STANDBY_1000ms, BME280_FLT_NONE, BME280_OSM_X4, BME280_OSM_X4, BME280_OSM_X4,
+    &siIndoorPress, &siIndoorTemp, &siIndoorHum, 
     3000, SENSOR_INDOOR_ERRORS_LIMIT, nullptr, sensorsPublish);
   sensorIndoor.registerParameters(pgSensors, SENSOR_INDOOR_KEY, SENSOR_INDOOR_TOPIC, SENSOR_INDOOR_NAME);
   sensorIndoor.nvsRestoreExtremums(SENSOR_INDOOR_KEY);
@@ -488,10 +500,10 @@ void sensorsTaskExec(void *pvParameters)
     sensorIndoor.readData();
     if (sensorIndoor.getStatus() == SENSOR_STATUS_OK) {
       rlog_i("INDOOR", "Values raw: %.2f °С / %.2f %% | out: %.2f °С / %.2f %% | min: %.2f °С / %.2f %% | max: %.2f °С / %.2f %%", 
-        sensorIndoor.getValue2(false).rawValue, sensorIndoor.getValue1(false).rawValue, 
-        sensorIndoor.getValue2(false).filteredValue, sensorIndoor.getValue1(false).filteredValue, 
-        sensorIndoor.getExtremumsDaily2(false).minValue.filteredValue, sensorIndoor.getExtremumsDaily1(false).minValue.filteredValue, 
-        sensorIndoor.getExtremumsDaily2(false).maxValue.filteredValue, sensorIndoor.getExtremumsDaily1(false).maxValue.filteredValue);
+        sensorIndoor.getValue2(false).rawValue, sensorIndoor.getValue3(false).rawValue, 
+        sensorIndoor.getValue2(false).filteredValue, sensorIndoor.getValue3(false).filteredValue, 
+        sensorIndoor.getExtremumsDaily2(false).minValue.filteredValue, sensorIndoor.getExtremumsDaily3(false).minValue.filteredValue, 
+        sensorIndoor.getExtremumsDaily2(false).maxValue.filteredValue, sensorIndoor.getExtremumsDaily3(false).maxValue.filteredValue);
     };
     sensorBoiler.readData();
     if (sensorBoiler.getStatus() == SENSOR_STATUS_OK) {

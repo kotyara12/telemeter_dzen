@@ -3,7 +3,7 @@
    EN: Project configuration file, accessible from all libraries connected to the project
    RU: Файл конфигурации проекта, он должен быть доступен из всех файлов проекта, в том числе и библиотек
    -----------------------------------------------------------------------------------------------------------------------
-   (с) 2020-2022 Разживин Александр | Razzhivin Alexander
+   (с) 2020-2023 Разживин Александр | Razzhivin Alexander
    kotyara12@yandex.ru | https://kotyara12.ru | tg: @kotyara1971
 */
 
@@ -16,7 +16,11 @@
 // ----------------------------------------------- EN - Version ----------------------------------------------------------
 // ----------------------------------------------- RU - Версии -----------------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------
-#define APP_VERSION "20221010.001"
+#define APP_VERSION "20230219.005"
+// 20230219.005: MQTT client: исправлена проблема переключения на резервный MQTT сервер, если он используется
+// 20230215.004: Адаптация под версию ESP-IDF 5.0.0
+// 20230210.003: Адаптация под ESP-IDF 4.4.3, добавлена поддержка статических буферов для I2C
+// 20221205.002: Добавлена отправка данных на Open Monitoring
 // 20221010.001: Только телеметрия (без термостата и охранно-пожарной сигнализации)
 
 // -----------------------------------------------------------------------------------------------------------------------
@@ -43,17 +47,19 @@
 #define CONFIG_GPIO_ALARM_ZONE_4 14
 #define CONFIG_GPIO_ALARM_ZONE_5 2
 // EN: I2C bus #0: pins, pullup, frequency
-// RU: Шина I2C #0: выводы, подтяжка, частота
+// RU: Шина I2C #0: выводы, подтяжка, частота, размер статического буфера в транзациях
 #define CONFIG_I2C_PORT0_SDA     21
 #define CONFIG_I2C_PORT0_SCL     22
 #define CONFIG_I2C_PORT0_PULLUP  false 
 #define CONFIG_I2C_PORT0_FREQ_HZ 100000
+#define CONFIG_I2C_PORT0_STATIC  2
 // EN: I2C bus #1: pins, pullup, frequency
-// RU: Шина I2C #1: выводы, подтяжка, частота
+// RU: Шина I2C #1: выводы, подтяжка, частота, размер статического буфера в транзациях
 #define CONFIG_I2C_PORT1_SDA     17
 #define CONFIG_I2C_PORT1_SCL     16
 #define CONFIG_I2C_PORT1_PULLUP  false
 #define CONFIG_I2C_PORT1_FREQ_HZ 100000
+#define CONFIG_I2C_PORT1_STATIC  2
 // EN: Blocking access to I2C buses. Makes sense if I2C devices are accessed from different threads. 
 // The I2C APIs are not thread-safe, if you want to use one I2C port in different tasks, you need to take care of the multi-thread issue.
 // RU: Блокировка доступа к шинам I2C. Имеет смысл, если доступ к устройствам I2C осущствляется из разных потоков
@@ -275,13 +281,13 @@
 #define CONFIG_OPENMON_SEND_INTERVAL 300
 // EN: Controller ids and tokens for open-monitoring.online
 // RU: Идентификаторы контроллеров и токены для open-monitoring.online
-#define CONFIG_OPENMON_CTR01_ID 2198
+#define CONFIG_OPENMON_CTR01_ID 9998
 #define CONFIG_OPENMON_CTR01_TOKEN "3W3aYt"
 // EN: Allow publication of ping results и системной информации on open-monitoring.online
 // RU: Разрешить публикацию результатов пинга и системной информации на open-monitoring.online
 #define CONFIG_OPENMON_PINGER_ENABLE 1
 #if CONFIG_OPENMON_PINGER_ENABLE
-#define CONFIG_OPENMON_PINGER_ID 2199
+#define CONFIG_OPENMON_PINGER_ID 9999
 #define CONFIG_OPENMON_PINGER_TOKEN "LUs2hg"
 #define CONFIG_OPENMON_PINGER_INTERVAL 300000
 #define CONFIG_OPENMON_PINGER_RSSI 1
