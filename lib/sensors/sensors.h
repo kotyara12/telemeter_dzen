@@ -10,14 +10,15 @@
 #include "reRangeMonitor.h"
 #include "reSensor.h" 
 #include "reDHTxx.h"
-#include "reHTU2x.h"
+// #include "reHTU2x.h"
+#include "reBME280.h"
 #include "reDS18x20.h"
 
 // -----------------------------------------------------------------------------------------------------------------------
 // ------------------------------------------------------- Сенсоры -------------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------
 
-// BME280: Улица
+// AM2302: Улица
 #define SENSOR_OUTDOOR_NAME "Улица (AM2302)"
 #define SENSOR_OUTDOOR_KEY "out"
 #define SENSOR_OUTDOOR_TOPIC "outdoor"
@@ -27,17 +28,17 @@
 
 static DHTxx sensorOutdoor(1);
 
-// HTU21: Комната
-#define SENSOR_INDOOR_NAME "Дом (SHT20)"
+// BME280: Комната
+#define SENSOR_INDOOR_NAME "Комната (BME280)"
 #define SENSOR_INDOOR_KEY "in"
 #define SENSOR_INDOOR_BUS 0
-#define SENSOR_INDOOR_ADDRESS HTU2X_ADDRESS
+#define SENSOR_INDOOR_ADDRESS BME280_ADDRESS_0X76
 #define SENSOR_INDOOR_TOPIC "indoor"
 #define SENSOR_INDOOR_FILTER_MODE SENSOR_FILTER_RAW
 #define SENSOR_INDOOR_FILTER_SIZE 0
-#define SENSOR_INDOOR_ERRORS_LIMIT 3
+#define SENSOR_INDOOR_ERRORS_LIMIT 10
 
-static HTU2x sensorIndoor(2);
+static BME280 sensorIndoor(2);
 
 // DS18B20: Теплоноситель
 #define SENSOR_BOILER_NAME "Котёл (DS18B20)"

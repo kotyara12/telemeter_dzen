@@ -1,6 +1,9 @@
 .pio
 .vscode
+ota/
 configs/
 *.code-workspace
 *.log
+*.hidden
+*.public
 

@@ -16,9 +16,11 @@
 // ----------------------------------------------- EN - Version ----------------------------------------------------------
 // ----------------------------------------------- RU - Версии -----------------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------
-#define APP_VERSION "20230210.003"
+#define APP_VERSION "20230219.005"
+// 20230219.005: MQTT client: исправлена проблема переключения на резервный MQTT сервер, если он используется
+// 20230215.004: Адаптация под версию ESP-IDF 5.0.0
 // 20230210.003: Адаптация под ESP-IDF 4.4.3, добавлена поддержка статических буферов для I2C
-// 20221205.002: Добавлена отправка данныъ на Open Monitoring
+// 20221205.002: Добавлена отправка данных на Open Monitoring
 // 20221010.001: Только телеметрия (без термостата и охранно-пожарной сигнализации)
 
 // -----------------------------------------------------------------------------------------------------------------------
@@ -279,13 +281,13 @@
 #define CONFIG_OPENMON_SEND_INTERVAL 300
 // EN: Controller ids and tokens for open-monitoring.online
 // RU: Идентификаторы контроллеров и токены для open-monitoring.online
-#define CONFIG_OPENMON_CTR01_ID 2198
+#define CONFIG_OPENMON_CTR01_ID 9998
 #define CONFIG_OPENMON_CTR01_TOKEN "3W3aYt"
 // EN: Allow publication of ping results и системной информации on open-monitoring.online
 // RU: Разрешить публикацию результатов пинга и системной информации на open-monitoring.online
 #define CONFIG_OPENMON_PINGER_ENABLE 1
 #if CONFIG_OPENMON_PINGER_ENABLE
-#define CONFIG_OPENMON_PINGER_ID 2199
+#define CONFIG_OPENMON_PINGER_ID 9999
 #define CONFIG_OPENMON_PINGER_TOKEN "LUs2hg"
 #define CONFIG_OPENMON_PINGER_INTERVAL 300000
 #define CONFIG_OPENMON_PINGER_RSSI 1
