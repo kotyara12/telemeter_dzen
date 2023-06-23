@@ -19,7 +19,7 @@
 #include "reEsp32.h"
 #include "reWiFi.h"
 #include "reSNTP.h"
-#include "reMQTT.h"
+#include "reMqtt.h"
 #include "reSysInfo.h"
 #include "reScheduler.h"
 #include "reI2C.h"
