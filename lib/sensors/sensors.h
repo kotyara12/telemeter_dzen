@@ -9,36 +9,38 @@
 #include "reLed.h" 
 #include "reRangeMonitor.h"
 #include "reSensor.h" 
-#include "reDHTxx.h"
-// #include "reHTU2x.h"
-#include "reBME280.h"
+// #include "reDHTxx.h"
+#include "reSHT3x.h"
+#include "reBMP280.h"
 #include "reDS18x20.h"
 
 // -----------------------------------------------------------------------------------------------------------------------
 // ------------------------------------------------------- Сенсоры -------------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------
 
-// AM2302: Улица
-#define SENSOR_OUTDOOR_NAME "Улица (AM2302)"
+// SHT31: Улица
+#define SENSOR_OUTDOOR_NAME "Улица (SHT31)"
 #define SENSOR_OUTDOOR_KEY "out"
 #define SENSOR_OUTDOOR_TOPIC "outdoor"
-#define SENSOR_OUTDOOR_FILTER_MODE SENSOR_FILTER_AVERAGE
-#define SENSOR_OUTDOOR_FILTER_SIZE 20
+#define SENSOR_OUTDOOR_BUS 0
+#define SENSOR_OUTDOOR_ADDRESS SHT3xD_ADDRESS_1
+#define SENSOR_OUTDOOR_FILTER_MODE SENSOR_FILTER_RAW
+#define SENSOR_OUTDOOR_FILTER_SIZE 0
 #define SENSOR_OUTDOOR_ERRORS_LIMIT 5
 
-static DHTxx sensorOutdoor(1);
+static SHT3xD sensorOutdoor(1);
 
-// BME280: Комната
-#define SENSOR_INDOOR_NAME "Комната (BME280)"
+// BMP280: Комната
+#define SENSOR_INDOOR_NAME "Комната (BMP280)"
 #define SENSOR_INDOOR_KEY "in"
 #define SENSOR_INDOOR_BUS 0
-#define SENSOR_INDOOR_ADDRESS BME280_ADDRESS_0X76
+#define SENSOR_INDOOR_ADDRESS BMP280_ADDRESS_0X76
 #define SENSOR_INDOOR_TOPIC "indoor"
 #define SENSOR_INDOOR_FILTER_MODE SENSOR_FILTER_RAW
 #define SENSOR_INDOOR_FILTER_SIZE 0
 #define SENSOR_INDOOR_ERRORS_LIMIT 10
 
-static BME280 sensorIndoor(2);
+static BMP280 sensorIndoor(2);
 
 // DS18B20: Теплоноситель
 #define SENSOR_BOILER_NAME "Котёл (DS18B20)"
