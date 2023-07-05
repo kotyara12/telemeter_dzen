@@ -16,6 +16,7 @@
 #include "reI2C.h"
 #include "reWiFi.h"
 #include "reRangeMonitor.h"
+#include "reLoadCtrl.h"
 #if CONFIG_TELEGRAM_ENABLE
 #include "reTgSend.h"
 #endif // CONFIG_TELEGRAM_ENABLE
@@ -30,6 +31,106 @@ static const char* logTAG = "SENS";
 static const char* sensorsTaskName = "sensors";
 static TaskHandle_t _sensorsTask;
 static bool _sensorsNeedStore = false;
+
+// -----------------------------------------------------------------------------------------------------------------------
+// ------------------------------------------------------ Термостат ------------------------------------------------------
+// -----------------------------------------------------------------------------------------------------------------------
+
+void boilerStateChange(rLoadController *ctrl, bool state, time_t duration)
+{
+  if (thermostatNotify) {
+    if (state) {
+      tgSend(CONTROL_THERMOSTAT_NOTIFY_KIND, CONTROL_THERMOSTAT_NOTIFY_PRIORITY, CONTROL_THERMOSTAT_NOTIFY_ALARM, CONFIG_TELEGRAM_DEVICE, 
+        CONTROL_THERMOSTAT_NOTIFY_ON);
+    } else {
+      tgSend(CONTROL_THERMOSTAT_NOTIFY_KIND, CONTROL_THERMOSTAT_NOTIFY_PRIORITY, CONTROL_THERMOSTAT_NOTIFY_ALARM, CONFIG_TELEGRAM_DEVICE, 
+        CONTROL_THERMOSTAT_NOTIFY_OFF);
+    };
+  };  
+}
+
+bool boilerMqttPublish(rLoadController *ctrl, char* topic, char* payload, bool free_topic, bool free_payload)
+{
+  return mqttPublish(topic, payload, CONTROL_THERMOSTAT_QOS, CONTROL_THERMOSTAT_RETAINED, free_topic, free_payload);
+}
+
+static rLoadGpioController lcBoiler(
+    CONFIG_GPIO_RELAY_BOILER,           // GPIO, к которому подключено реле
+    0x01,                               // Реле включается высоким уровнем на выходе
+    false,                              // Подтяжка вывода не нужна (да это вообще бесполезная опция, позже уберу)
+    false,                              // Таймер не нужен
+    CONTROL_THERMOSTAT_BOILER_KEY,      // Ключ, по которому будет хранится статистика в NVS space
+    nullptr, nullptr, TI_MILLISECONDS,  // Указатели на параметры периодического управления нагрузкой, не нужны
+    nullptr, nullptr,                   // Указатели на callbacks, которые будут вызываны перед и после изменения состояния выхода
+    boilerStateChange,                  // Функция обратного вызова, которая будет вызывана при изменении состояния нагрузки
+    boilerMqttPublish                   // Функция обратного вызова, которая будет вызывана при необходимости отправить данные на MQTT брокер
+  );
+
+void sensorsInitRelays()
+{
+  #if defined(CONFIG_ELTARIFFS_ENABLED) && CONFIG_ELTARIFFS_ENABLED
+  lcBoiler.setPeriodStartDay(elTariffsGetReportDayAddress());
+  #endif // CONFIG_ELTARIFFS_ENABLED
+  lcBoiler.countersNvsRestore();
+  lcBoiler.loadInit(false);
+}
+
+bool sensorsBoilerTempCheck()
+{
+  // Получаем текущее состояние нагрузки
+  bool oldState = lcBoiler.getState();
+
+  // Получаем текущую температуру с сенсора (она хранится во втором "хранилище") без физического чтения данных с шины
+  float tempIndoor = NAN;
+  if (sensorIndoor.getStatus() == SENSOR_STATUS_OK) {
+    tempIndoor = sensorIndoor.getValue2(false).filteredValue;
+  };
+
+  // Если удалось считать температуру, проверяем её в зависимости от текущего состояния нагрузки
+  if (!isnan(tempIndoor)) {
+    if (oldState) {
+      // Сейчас котел включен. Выключить мы его должны, когда температура достигнет порогового + 1/2 гистерезиса
+      return tempIndoor < (thermostatInternalTemp + 0.5 * thermostatInternalHyst);
+    } else {
+      // Сейчас котел выключен. Включить мы его должны, когда температура снизится до порогового - 1/2 гистерезиса
+      return tempIndoor < (thermostatInternalTemp - 0.5 * thermostatInternalHyst);
+    };
+  };
+  return false;
+}
+
+void sensorsBoilerControl()
+{
+  bool newState;
+
+  // Котел выключен всегда
+  if (thermostatMode == THERMOSTAT_OFF) {
+    newState = false;
+  } 
+  // Котел включен всегда (без учета расписания и температуры)
+  else if (thermostatMode == THERMOSTAT_ON) {
+    newState = true;
+  } 
+  // Только управление по расписанию (без учета температуры)
+  else if (thermostatMode == THERMOSTAT_TIME) {
+    newState = checkTimespanNowEx(thermostatTimespan, true);
+  } 
+  // Только управление по температуре (без учета расписания)
+  else if (thermostatMode == THERMOSTAT_TEMP) {
+    newState = sensorsBoilerTempCheck();
+  } 
+  // Управление по расписанию и температуре одновременно
+  else if (thermostatMode == THERMOSTAT_TIME_AND_TEMP) {
+    newState = checkTimespanNowEx(thermostatTimespan, true) && sensorsBoilerTempCheck();
+  } 
+  // Защита от ошибки программиста (а вдруг вы добавили еще режим и забыли написать обработчик?)
+  else {
+    newState = false;
+  };
+
+  // Применяем новое состояние
+  lcBoiler.loadSetState(newState, false, true);
+}
 
 // -----------------------------------------------------------------------------------------------------------------------
 // -------------------------------------------------------- Сенсоры ------------------------------------------------------
@@ -60,6 +161,7 @@ static void sensorsMqttTopicsCreate(bool primary)
   if (tempMonitorBoiler.mqttTopicCreate(primary, CONTROL_TEMP_LOCAL, CONTROL_TEMP_GROUP_TOPIC, CONTROL_TEMP_BOILER_TOPIC, nullptr)) {
     rlog_i(logTAG, "Generated topic for boiler temperture control: [ %s ]", tempMonitorBoiler.mqttTopicGet());
   };
+  lcBoiler.mqttTopicCreate(primary, CONTROL_THERMOSTAT_LOCAL, CONTROL_THERMOSTAT_BOILER_TOPIC, nullptr, nullptr);
 }
 
 static void sensorsMqttTopicsFree()
@@ -69,6 +171,7 @@ static void sensorsMqttTopicsFree()
   tempMonitorIndoor.mqttTopicFree();
   sensorBoiler.topicsFree();
   tempMonitorBoiler.mqttTopicFree();
+  lcBoiler.mqttTopicFree();
   rlog_d(logTAG, "Topics for temperture control has been scrapped");
 }
 
@@ -115,11 +218,13 @@ static void sensorsStoreData()
 
   tempMonitorIndoor.nvsStore(CONTROL_TEMP_INDOOR_KEY);
   tempMonitorBoiler.nvsStore(CONTROL_TEMP_BOILER_KEY);
+
+  lcBoiler.countersNvsStore();
 }
 
 static void sensorsInitParameters()
 {
-  // Параметры сенсоров и интервалы публикации
+  // Группы параметров
   pgSensors = paramsRegisterGroup(nullptr, 
     CONFIG_SENSOR_PGROUP_ROOT_KEY, CONFIG_SENSOR_PGROUP_ROOT_TOPIC, CONFIG_SENSOR_PGROUP_ROOT_FRIENDLY);
   pgIntervals = paramsRegisterGroup(pgSensors, 
@@ -127,28 +232,52 @@ static void sensorsInitParameters()
   pgTempMonitor = paramsRegisterGroup(nullptr, 
     CONTROL_TEMP_GROUP_KEY, CONTROL_TEMP_GROUP_TOPIC, CONTROL_TEMP_GROUP_FRIENDLY);
 
+  paramsGroupHandle_t pgThermostat = paramsRegisterGroup(nullptr, 
+    CONTROL_THERMOSTAT_GROUP_KEY, CONTROL_THERMOSTAT_GROUP_TOPIC, CONTROL_THERMOSTAT_GROUP_FRIENDLY);
+
   // Период публикации данных с сенсоров на MQTT
-  paramsRegisterValue(OPT_KIND_PARAMETER, OPT_TYPE_U32, nullptr, pgIntervals,
-    CONFIG_SENSOR_PARAM_INTERVAL_MQTT_KEY, CONFIG_SENSOR_PARAM_INTERVAL_MQTT_FRIENDLY,
-    CONFIG_MQTT_PARAMS_QOS, (void*)&iMqttPubInterval);
-
-  #if CONFIG_OPENMON_ENABLE
+  if (pgIntervals) {
     paramsRegisterValue(OPT_KIND_PARAMETER, OPT_TYPE_U32, nullptr, pgIntervals,
-      CONFIG_SENSOR_PARAM_INTERVAL_OPENMON_KEY, CONFIG_SENSOR_PARAM_INTERVAL_OPENMON_FRIENDLY,
-      CONFIG_MQTT_PARAMS_QOS, (void*)&iOpenMonInterval);
-  #endif // CONFIG_OPENMON_ENABLE
+      CONFIG_SENSOR_PARAM_INTERVAL_MQTT_KEY, CONFIG_SENSOR_PARAM_INTERVAL_MQTT_FRIENDLY,
+      CONFIG_MQTT_PARAMS_QOS, (void*)&iMqttPubInterval);
 
-  #if CONFIG_NARODMON_ENABLE
-    paramsRegisterValue(OPT_KIND_PARAMETER, OPT_TYPE_U32, nullptr, pgIntervals,
-      CONFIG_SENSOR_PARAM_INTERVAL_NARODMON_KEY, CONFIG_SENSOR_PARAM_INTERVAL_NARODMON_FRIENDLY,
-      CONFIG_MQTT_PARAMS_QOS, (void*)&iNarodMonInterval);
-  #endif // CONFIG_NARODMON_ENABLE
+    #if CONFIG_OPENMON_ENABLE
+      paramsRegisterValue(OPT_KIND_PARAMETER, OPT_TYPE_U32, nullptr, pgIntervals,
+        CONFIG_SENSOR_PARAM_INTERVAL_OPENMON_KEY, CONFIG_SENSOR_PARAM_INTERVAL_OPENMON_FRIENDLY,
+        CONFIG_MQTT_PARAMS_QOS, (void*)&iOpenMonInterval);
+    #endif // CONFIG_OPENMON_ENABLE
 
-  #if CONFIG_THINGSPEAK_ENABLE
-    paramsRegisterValue(OPT_KIND_PARAMETER, OPT_TYPE_U32, nullptr, pgIntervals,
-      CONFIG_SENSOR_PARAM_INTERVAL_THINGSPEAK_KEY, CONFIG_SENSOR_PARAM_INTERVAL_THINGSPEAK_FRIENDLY,
-      CONFIG_MQTT_PARAMS_QOS, (void*)&iThingSpeakInterval);
-  #endif // CONFIG_THINGSPEAK_ENABLE
+    #if CONFIG_NARODMON_ENABLE
+      paramsRegisterValue(OPT_KIND_PARAMETER, OPT_TYPE_U32, nullptr, pgIntervals,
+        CONFIG_SENSOR_PARAM_INTERVAL_NARODMON_KEY, CONFIG_SENSOR_PARAM_INTERVAL_NARODMON_FRIENDLY,
+        CONFIG_MQTT_PARAMS_QOS, (void*)&iNarodMonInterval);
+    #endif // CONFIG_NARODMON_ENABLE
+
+    #if CONFIG_THINGSPEAK_ENABLE
+      paramsRegisterValue(OPT_KIND_PARAMETER, OPT_TYPE_U32, nullptr, pgIntervals,
+        CONFIG_SENSOR_PARAM_INTERVAL_THINGSPEAK_KEY, CONFIG_SENSOR_PARAM_INTERVAL_THINGSPEAK_FRIENDLY,
+        CONFIG_MQTT_PARAMS_QOS, (void*)&iThingSpeakInterval);
+    #endif // CONFIG_THINGSPEAK_ENABLE
+  };
+
+  // Параметры термостата
+  if (pgThermostat) {
+    paramsRegisterValue(OPT_KIND_PARAMETER, OPT_TYPE_U8, nullptr, pgThermostat,
+      CONTROL_THERMOSTAT_PARAM_MODE_KEY, CONTROL_THERMOSTAT_PARAM_MODE_FRIENDLY,
+      CONFIG_MQTT_PARAMS_QOS, (void*)&thermostatMode);
+    paramsRegisterValue(OPT_KIND_PARAMETER, OPT_TYPE_FLOAT, nullptr, pgThermostat,
+      CONTROL_THERMOSTAT_PARAM_TEMP_KEY, CONTROL_THERMOSTAT_PARAM_TEMP_FRIENDLY,
+      CONFIG_MQTT_PARAMS_QOS, (void*)&thermostatInternalTemp);
+    paramsRegisterValue(OPT_KIND_PARAMETER, OPT_TYPE_FLOAT, nullptr, pgThermostat,
+      CONTROL_THERMOSTAT_PARAM_HYST_KEY, CONTROL_THERMOSTAT_PARAM_HYST_FRIENDLY,
+      CONFIG_MQTT_PARAMS_QOS, (void*)&thermostatInternalHyst);
+    paramsRegisterValue(OPT_KIND_PARAMETER, OPT_TYPE_TIMESPAN, nullptr, pgThermostat,
+      CONTROL_THERMOSTAT_PARAM_TIME_KEY, CONTROL_THERMOSTAT_PARAM_TIME_FRIENDLY,
+      CONFIG_MQTT_PARAMS_QOS, (void*)&thermostatTimespan);
+    paramsRegisterValue(OPT_KIND_PARAMETER, OPT_TYPE_U8, nullptr, pgThermostat,
+      CONTROL_THERMOSTAT_PARAM_NOTIFY_KEY, CONTROL_THERMOSTAT_PARAM_NOTIFY_FRIENDLY,
+      CONFIG_MQTT_PARAMS_QOS, (void*)&thermostatNotify);
+  };
 }
 
 static void sensorsInitSensors()
@@ -175,7 +304,7 @@ static void sensorsInitSensors()
     #endif // CONFIG_SENSOR_TIMESTRING_ENABLE
   );
   sensorOutdoor.initExtItems(SENSOR_OUTDOOR_NAME, SENSOR_OUTDOOR_TOPIC, false,
-    SENSOR_INDOOR_BUS, SENSOR_INDOOR_ADDRESS, SHT3xD_SINGLE, SHT3xD_MODE_NOHOLD, SHT3xD_REPEATABILITY_MEDIUM,
+    DHT_DHT22, CONFIG_GPIO_AM2320, false, CONFIG_GPIO_RELAY_AM2320, 1,
     &siOutdoorHum, &siOutdoorTemp,
     3000, SENSOR_OUTDOOR_ERRORS_LIMIT, nullptr, sensorsPublish);
   sensorOutdoor.registerParameters(pgSensors, SENSOR_OUTDOOR_KEY, SENSOR_OUTDOOR_TOPIC, SENSOR_OUTDOOR_NAME);
@@ -192,7 +321,6 @@ static void sensorsInitSensors()
       CONFIG_FORMAT_TIMESTAMP_S, CONFIG_FORMAT_TSVALUE
     #endif // CONFIG_SENSOR_TIMESTRING_ENABLE
   );
-
   static rTemperatureItem siIndoorTemp(nullptr, CONFIG_SENSOR_TEMP_NAME, CONFIG_FORMAT_TEMP_UNIT,
     SENSOR_INDOOR_FILTER_MODE, SENSOR_INDOOR_FILTER_SIZE, 
     CONFIG_FORMAT_TEMP_VALUE, CONFIG_FORMAT_TEMP_STRING,
@@ -203,10 +331,20 @@ static void sensorsInitSensors()
       CONFIG_FORMAT_TIMESTAMP_S, CONFIG_FORMAT_TSVALUE
     #endif // CONFIG_SENSOR_TIMESTRING_ENABLE
   );
+  static rSensorItem siIndoorHum(nullptr, CONFIG_SENSOR_HUMIDITY_NAME, 
+    SENSOR_INDOOR_FILTER_MODE, SENSOR_INDOOR_FILTER_SIZE, 
+    CONFIG_FORMAT_HUMIDITY_VALUE, CONFIG_FORMAT_HUMIDITY_STRING,
+    #if CONFIG_SENSOR_TIMESTAMP_ENABLE
+      CONFIG_FORMAT_TIMESTAMP_L, 
+    #endif // CONFIG_SENSOR_TIMESTAMP_ENABLE
+    #if CONFIG_SENSOR_TIMESTRING_ENABLE  
+      CONFIG_FORMAT_TIMESTAMP_S, CONFIG_FORMAT_TSVALUE
+    #endif // CONFIG_SENSOR_TIMESTRING_ENABLE
+  );
   sensorIndoor.initExtItems(SENSOR_INDOOR_NAME, SENSOR_INDOOR_TOPIC, false,
     SENSOR_INDOOR_BUS, SENSOR_INDOOR_ADDRESS, 
-    BMP280_MODE_FORCED, BMP280_STANDBY_1000ms, BMP280_FLT_NONE, BMP280_OSM_X4, BMP280_OSM_X4, 
-    &siIndoorPress, &siIndoorTemp, 
+    BME280_MODE_FORCED, BME280_STANDBY_1000ms, BME280_FLT_NONE, BME280_OSM_X4, BME280_OSM_X4, BME280_OSM_X4,
+    &siIndoorPress, &siIndoorTemp, &siIndoorHum, 
     3000, SENSOR_INDOOR_ERRORS_LIMIT, nullptr, sensorsPublish);
   sensorIndoor.registerParameters(pgSensors, SENSOR_INDOOR_KEY, SENSOR_INDOOR_TOPIC, SENSOR_INDOOR_NAME);
   sensorIndoor.nvsRestoreExtremums(SENSOR_INDOOR_KEY);
@@ -262,6 +400,7 @@ static void sensorsTimeEventHandler(void* arg, esp_event_base_t event_base, int3
   if (event_id == RE_TIME_START_OF_DAY) {
     _sensorsNeedStore = true;
   };
+  lcBoiler.countersTimeEventHandler(event_id, event_data);
 }
 
 static void sensorsResetExtremumsSensor(rSensor* sensor, const char* sensor_name, uint8_t mode) 
@@ -434,6 +573,11 @@ void sensorsTaskExec(void *pvParameters)
   sensorsInitSensors();
 
   // -------------------------------------------------------------------------------------------------------
+  // Инициализация термостата 
+  // -------------------------------------------------------------------------------------------------------
+  sensorsInitRelays();
+
+  // -------------------------------------------------------------------------------------------------------
   // Инициализация контроллеров
   // -------------------------------------------------------------------------------------------------------
   // Инициализация контроллеров OpenMon
@@ -508,6 +652,8 @@ void sensorsTaskExec(void *pvParameters)
     // Контроль температуры
     // -----------------------------------------------------------------------------------------------------
 
+    sensorsBoilerControl();
+
     if (sensorIndoor.getStatus() == SENSOR_STATUS_OK) {
       tempMonitorIndoor.checkValue(sensorIndoor.getValue2(false).filteredValue);
     };
@@ -536,6 +682,7 @@ void sensorsTaskExec(void *pvParameters)
       tempMonitorIndoor.mqttPublish();
       sensorBoiler.publishData(false);
       tempMonitorBoiler.mqttPublish();
+      lcBoiler.mqttPublish();
     };
 
     // open-monitoring.online
