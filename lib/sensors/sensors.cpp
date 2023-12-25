@@ -57,7 +57,6 @@ bool boilerMqttPublish(rLoadController *ctrl, char* topic, char* payload, bool f
 static rLoadGpioController lcBoiler(
     CONFIG_GPIO_RELAY_BOILER,           // GPIO, к которому подключено реле
     0x01,                               // Реле включается высоким уровнем на выходе
-    false,                              // Подтяжка вывода не нужна (да это вообще бесполезная опция, позже уберу)
     false,                              // Таймер не нужен
     CONTROL_THERMOSTAT_BOILER_KEY,      // Ключ, по которому будет хранится статистика в NVS space
     nullptr, nullptr, TI_MILLISECONDS,  // Указатели на параметры периодического управления нагрузкой, не нужны

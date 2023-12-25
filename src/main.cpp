@@ -76,10 +76,14 @@ extern "C" { void app_main(void)
   vTaskDelay(1);
 
   // Инициализация шины I2C
-  initI2C(0, CONFIG_I2C_PORT0_SDA, CONFIG_I2C_PORT0_SCL, CONFIG_I2C_PORT0_PULLUP, CONFIG_I2C_PORT0_FREQ_HZ);
-  scanI2C(0);
-  initI2C(1, CONFIG_I2C_PORT1_SDA, CONFIG_I2C_PORT1_SCL, CONFIG_I2C_PORT1_PULLUP, CONFIG_I2C_PORT1_FREQ_HZ);
-  scanI2C(1);
+  #if defined(CONFIG_I2C_PORT0_SDA)
+    initI2C(I2C_NUM_0, CONFIG_I2C_PORT0_SDA, CONFIG_I2C_PORT0_SCL, CONFIG_I2C_PORT0_PULLUP, CONFIG_I2C_PORT0_FREQ_HZ);
+    scanI2C(I2C_NUM_0);
+  #endif // CONFIG_I2C_PORT0_SDA
+  #if defined(CONFIG_I2C_PORT1_SDA)
+    initI2C(I2C_NUM_1, CONFIG_I2C_PORT1_SDA, CONFIG_I2C_PORT1_SCL, CONFIG_I2C_PORT1_PULLUP, CONFIG_I2C_PORT1_FREQ_HZ);
+    scanI2C(I2C_NUM_1);
+  #endif // CONFIG_I2C_PORT1_SDA
   vTaskDelay(1);
 
   // Настраиваем параметры тарифов на электроэнергию (для расчетов потребляемой энергии нагрузкой)
