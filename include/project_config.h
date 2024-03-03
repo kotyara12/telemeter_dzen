@@ -16,7 +16,8 @@
 // ----------------------------------------------- EN - Version ----------------------------------------------------------
 // ----------------------------------------------- RU - Версии -----------------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------
-#define APP_VERSION "20230625.006"
+#define APP_VERSION "20240228.007"
+// 20240228.007: Добавлены функции охранно-пожаной-аварийной сигнализации
 // 20230625.006: Пример замены сенсоров на другие, обновление библиотек
 // 20230219.005: MQTT client: исправлена проблема переключения на резервный MQTT сервер, если он используется
 // 20230215.004: Адаптация под версию ESP-IDF 5.0.0
@@ -30,37 +31,39 @@
 // -----------------------------------------------------------------------------------------------------------------------
 // EN: Peripheral pin number
 // RU: Номер выводов периферии, версия платы 9.05
-#define CONFIG_GPIO_SYSTEM_LED   33
-#define CONFIG_GPIO_ALARM_LED    23
-#define CONFIG_GPIO_ALARM_SIREN  25
-#define CONFIG_GPIO_ALARM_FLASH  26
-// #define CONFIG_GPIO_BUZZER       13
-#define CONFIG_GPIO_RX433        15
-#define CONFIG_GPIO_DS18B20      4
-#define CONFIG_GPIO_AM2320       0
-#define CONFIG_GPIO_RELAY_AM2320 32
-#define CONFIG_GPIO_RELAY_BOILER 27
+#define CONFIG_GPIO_SYSTEM_LED      33
+#define CONFIG_GPIO_ALARM_LED       23
+#define CONFIG_GPIO_ALARM_SIREN     25
+#define CONFIG_GPIO_ALARM_FLASH     26
+// #define CONFIG_GPIO_BUZZER           13
+#define CONFIG_GPIO_BUZZER_ACTIVE   13
+#define CONFIG_GPIO_RX433           15
+#define CONFIG_GPIO_DS18B20         4
+#define CONFIG_GPIO_AM2320          0
+#define CONFIG_GPIO_RELAY_AM2320    32
+#define CONFIG_GPIO_RELAY_BOILER    27
 // EN: Alarm zones
 // RU: Зоны ОПС
-#define CONFIG_GPIO_ALARM_ZONE_1 18
-#define CONFIG_GPIO_ALARM_ZONE_2 19
-#define CONFIG_GPIO_ALARM_ZONE_3 12
-#define CONFIG_GPIO_ALARM_ZONE_4 14
-#define CONFIG_GPIO_ALARM_ZONE_5 2
+#define CONFIG_GPIO_ALARM_ZONE_1    18
+#define CONFIG_GPIO_ALARM_ZONE_2    19
+#define CONFIG_GPIO_ALARM_ZONE_3    12
+#define CONFIG_GPIO_ALARM_ZONE_4    14
+#define CONFIG_GPIO_ALARM_ZONE_5    2
+#define CONFIG_GPIO_ALARM_LEVEL     0x01
 // EN: I2C bus #0: pins, pullup, frequency
 // RU: Шина I2C #0: выводы, подтяжка, частота, размер статического буфера в транзациях
-#define CONFIG_I2C_PORT0_SDA     21
-#define CONFIG_I2C_PORT0_SCL     22
-#define CONFIG_I2C_PORT0_PULLUP  false 
-#define CONFIG_I2C_PORT0_FREQ_HZ 100000
-#define CONFIG_I2C_PORT0_STATIC  2
+#define CONFIG_I2C_PORT0_SDA        21
+#define CONFIG_I2C_PORT0_SCL        22
+#define CONFIG_I2C_PORT0_PULLUP     false 
+#define CONFIG_I2C_PORT0_FREQ_HZ    100000
+#define CONFIG_I2C_PORT0_STATIC     2
 // EN: I2C bus #1: pins, pullup, frequency
 // RU: Шина I2C #1: выводы, подтяжка, частота, размер статического буфера в транзациях
-#define CONFIG_I2C_PORT1_SDA     17
-#define CONFIG_I2C_PORT1_SCL     16
-#define CONFIG_I2C_PORT1_PULLUP  false
-#define CONFIG_I2C_PORT1_FREQ_HZ 100000
-#define CONFIG_I2C_PORT1_STATIC  2
+#define CONFIG_I2C_PORT1_SDA        17
+#define CONFIG_I2C_PORT1_SCL        16
+#define CONFIG_I2C_PORT1_PULLUP     false
+#define CONFIG_I2C_PORT1_FREQ_HZ    100000
+#define CONFIG_I2C_PORT1_STATIC     2
 // EN: Blocking access to I2C buses. Makes sense if I2C devices are accessed from different threads. 
 // The I2C APIs are not thread-safe, if you want to use one I2C port in different tasks, you need to take care of the multi-thread issue.
 // RU: Блокировка доступа к шинам I2C. Имеет смысл, если доступ к устройствам I2C осущствляется из разных потоков
@@ -133,6 +136,38 @@
 // RU: Публиковать экстеремумы только при их изменении
 #define CONFIG_SENSOR_EXTREMUMS_OPTIMIZED 1
 
+// -----------------------------------------------------------------------------------------------------------------------
+// -------------------------------------------------- EN - Security ------------------------------------------------------
+// ------------------------------------------------ RU - Сигнализация ----------------------------------------------------
+// -----------------------------------------------------------------------------------------------------------------------
+
+// EN: Use static memory allocation for the fire alarm task
+// RU: Использовать статическое выделение памяти для задачи охранно-пожарной сигнализации
+#define CONFIG_ALARM_STATIC_ALLOCATION 1
+// EN: Stack size for the fire alarm task
+// RU: Размер стека для задачи охранно-пожарной сигнализации
+#define CONFIG_ALARM_STACK_SIZE 4098
+// EN: Queue size for the fire alarm task
+// RU: Размер очереди для задачи охранно-пожарной сигнализации
+#define CONFIG_ALARM_QUEUE_SIZE 32
+// EN: Device topic for OPS
+// RU: Топик устройства для ОПС
+// #define CONFIG_ALARM_MQTT_DEVICE_TOPIC "home"
+// EN: Publish the status of OPS sensors in local topics for transmission to other devices
+// RU: Публиковать состояние сенсоров ОПС в локальных топиках для передачи на другие устройства
+#define CONFIG_ALARM_LOCAL_PUBLISH true
+// EN: Scheme of OPS topics: 0 - %location%/config/security/mode; 1 - %location%/%device%/config/security/mode
+// RU: Схема топиков ОПС: 0 - %location%/config/security/mode; 1 - %location%/%device%/config/security/mode
+#define CONFIG_ALARM_MQTT_DEVICE_MODE 0
+// EN: Scheme of OPS topics: 0 - %location%/security/events/%zone%; 1 - %location%/%device%/security/events/%zone%
+// RU: Схема топиков ОПС: 0 - %location%/security/events/%zone%; 1 - %location%/%device%/security/events/%zone%
+#define CONFIG_ALARM_MQTT_DEVICE_EVENTS 0
+// EN: Scheme of OPS topics: 0 - %location%/security/status/%device%; 1 - %location%/%device%/security/status
+// RU: Схема топиков ОПС: 0 - %location%/security/status/%device%; 1 - %location%/%device%/security/status
+#define CONFIG_ALARM_MQTT_DEVICE_STATUS 0
+// EN: When disabling the alarm from the remote control, immediately disarm; otherwise disable the alarm without disarming
+// RU: При отключении тревоги с пульта сразу же снять с охраны; иначе отключить тревогу без снятия с охраны
+#define CONFIG_ALARM_TOGETHER_DISABLE_SIREN_AND_ALARM 1
 
 // -----------------------------------------------------------------------------------------------------------------------
 // ---------------------------------------------- EN - Wifi networks -----------------------------------------------------
@@ -212,10 +247,10 @@
 #define CONFIG_MQTT1_PING_CHECK_DURATION 250
 #define CONFIG_MQTT1_PING_CHECK_LOSS 50.0
 #define CONFIG_MQTT1_PING_CHECK_LIMIT 3
-#define CONFIG_MQTT1_PORT_TCP 9632
-#define CONFIG_MQTT1_PORT_TLS 9633
-#define CONFIG_MQTT1_USERNAME "uRSARF87"
-#define CONFIG_MQTT1_PASSWORD "bYWuEMRO"
+#define CONFIG_MQTT1_PORT_TCP 2632
+#define CONFIG_MQTT1_PORT_TLS 2633
+#define CONFIG_MQTT1_USERNAME "u_dzen"
+#define CONFIG_MQTT1_PASSWORD "aaaaaaaa"
 #define CONFIG_MQTT1_TLS_ENABLED 1
 #define CONFIG_MQTT1_TLS_STORAGE CONFIG_DEFAULT_TLS_STORAGE
 #define CONFIG_MQTT1_TLS_PEM_START CONFIG_DEFAULT_TLS_PEM_START
@@ -225,11 +260,11 @@
 #define CONFIG_MQTT1_KEEP_ALIVE 60
 #define CONFIG_MQTT1_TIMEOUT 10000
 #define CONFIG_MQTT1_RECONNECT 10000
-#define CONFIG_MQTT1_CLIENTID "esp32_thermostat"
+#define CONFIG_MQTT1_CLIENTID "esp32_dzen1"
 // #define CONFIG_MQTT1_LOC_PREFIX ""
 // #define CONFIG_MQTT1_PUB_PREFIX ""
-#define CONFIG_MQTT1_LOC_LOCATION "local/village"
-#define CONFIG_MQTT1_PUB_LOCATION "village"
+#define CONFIG_MQTT1_LOC_LOCATION "dzen/local"
+#define CONFIG_MQTT1_PUB_LOCATION "dzen"
 #define CONFIG_MQTT1_LOC_DEVICE "thermostat"
 #define CONFIG_MQTT1_PUB_DEVICE "thermostat"
 
@@ -347,11 +382,11 @@
 #define CONFIG_TELEGRAM_ENABLE 1
 // EN: Telegram API bot token
 // RU: Токен бота API Telegram
-#define CONFIG_TELEGRAM_TOKEN "7271238860:5TT9VrUmL33INA-AAEVmwj_w25usmWvdjaE"
+#define CONFIG_TELEGRAM_TOKEN "00000000000:0000000000000000000000000000000000000000000000000000000"
 // EN: Chat or group ID
 // RU: Идентификатор чата или группы
-#define CONFIG_TELEGRAM_CHAT_ID_MAIN     "-572534150"
-#define CONFIG_TELEGRAM_CHAT_ID_SERVICE  "-1009183247562"
+#define CONFIG_TELEGRAM_CHAT_ID_MAIN     "-00000000000"
+#define CONFIG_TELEGRAM_CHAT_ID_SERVICE  "-00000000001"
 #define CONFIG_TELEGRAM_CHAT_ID_PARAMS   CONFIG_TELEGRAM_CHAT_ID_SERVICE
 #define CONFIG_TELEGRAM_CHAT_ID_SECURITY CONFIG_TELEGRAM_CHAT_ID_MAIN
 // EN: Send message header (device name, see CONFIG_TELEGRAM_DEVICE)
@@ -359,7 +394,7 @@
 #define CONFIG_TELEGRAM_TITLE_ENABLED 0
 // EN: Device name (published as message header)
 // RU: Название устройства (публикуется в качестве заголовка сообщения)
-#define CONFIG_TELEGRAM_DEVICE "🏡 ДОМ"
+#define CONFIG_TELEGRAM_DEVICE "ДЗЕН"
 
 // -----------------------------------------------------------------------------------------------------------------------
 // ---------------------------------------------- EN - Notifies ----------------------------------------------------------

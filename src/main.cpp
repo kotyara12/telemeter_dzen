@@ -40,6 +40,7 @@
 #include "reElTariffs.h"
 #endif // CONFIG_ELTARIFFS_ENABLED
 #include "sensors.h"
+#include "security.h"
 
 // Главная функция
 extern "C" { void app_main(void) 
@@ -134,6 +135,10 @@ extern "C" { void app_main(void)
 
   // Запуск службы контроля температуры
   sensorsTaskStart();
+  vTaskDelay(1);
+
+  // Запуск службы охранно-пожарной сигнализации
+  alarmStart();
   vTaskDelay(1);
 
   // Подключение к WiFi AP
