@@ -35,8 +35,8 @@
 #define CONFIG_GPIO_ALARM_LED       23
 #define CONFIG_GPIO_ALARM_SIREN     25
 #define CONFIG_GPIO_ALARM_FLASH     26
-// #define CONFIG_GPIO_BUZZER           13
-#define CONFIG_GPIO_BUZZER_ACTIVE   13
+#define CONFIG_GPIO_BUZZER           13
+// #define CONFIG_GPIO_BUZZER_ACTIVE   13
 #define CONFIG_GPIO_RX433           15
 #define CONFIG_GPIO_DS18B20         4
 #define CONFIG_GPIO_AM2320          0
